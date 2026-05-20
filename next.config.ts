@@ -1,7 +1,10 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: ['mongoose', '@anthropic-ai/sdk', '@google/generative-ai'],
+  images: {
+    remotePatterns: [{ protocol: 'https', hostname: '**' }],
+  },
 };
 
 export default nextConfig;
