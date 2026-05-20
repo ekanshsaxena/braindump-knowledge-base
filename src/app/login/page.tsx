@@ -19,7 +19,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <SignIn routing="hash" />
+        <SignIn afterSignInUrl="/" afterSignUpUrl="/" />
       </div>
     </div>
   );
