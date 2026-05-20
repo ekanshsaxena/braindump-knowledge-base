@@ -19,7 +19,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <SignIn afterSignInUrl="/" afterSignUpUrl="/" />
+        <SignIn />
       </div>
     </div>
   );
