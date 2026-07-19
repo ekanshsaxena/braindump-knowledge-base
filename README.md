@@ -1,6 +1,6 @@
 # Braindump — AI-Powered Knowledge Base
 
-A personal knowledge management app that uses AI to organize, tag, and surface connections between saved content.
+A personal knowledge management app that uses AI to organize, tag, and surface connections between saved content. It acts like your second brain.
 
 ## Stack
 
