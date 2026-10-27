@@ -39,9 +39,7 @@ export interface UserCategory {
 }
 
 export interface AppSettings {
-  anthropicApiKey: string;
   geminiApiKey: string;
-  priority: 'anthropic' | 'gemini';
   maxTokens: number;
   userCategories: UserCategory[];
   onboardingCompleted: boolean;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, CheckCircle, Loader2, Key, Zap, Plus, X, Hash, Bot, Sparkles, Tag } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, Loader2, Key, Hash, Bot, Sparkles, Tag, Plus, X } from 'lucide-react';
 import { AppSettings, UserCategory } from '@/types';
 import { toast } from './Toast';
 
@@ -10,16 +10,13 @@ type Tab = 'ai' | 'categories';
 export default function SettingsForm() {
   const [tab, setTab] = useState<Tab>('ai');
   const [settings, setSettings] = useState<AppSettings>({
-    anthropicApiKey: '',
     geminiApiKey: '',
-    priority: 'anthropic',
     maxTokens: 1024,
     userCategories: [],
     onboardingCompleted: false,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showAnthropic, setShowAnthropic] = useState(false);
   const [showGemini, setShowGemini] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatEmoji, setNewCatEmoji] = useState('');
@@ -29,9 +26,7 @@ export default function SettingsForm() {
       .then((r) => r.json())
       .then((data) => {
         setSettings({
-          anthropicApiKey: data.anthropicApiKey ?? '',
           geminiApiKey: data.geminiApiKey ?? '',
-          priority: data.priority ?? 'anthropic',
           maxTokens: data.maxTokens ?? 1024,
           userCategories: data.userCategories ?? [],
           onboardingCompleted: data.onboardingCompleted ?? false,
@@ -103,104 +98,49 @@ export default function SettingsForm() {
 
       {tab === 'ai' && (
         <div className="space-y-4">
-          {/* API Keys — side by side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Anthropic */}
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-500/10 flex items-center justify-center text-base">🤖</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Anthropic (Claude)</p>
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500">claude-haiku-4-5</p>
-                </div>
-                {settings.anthropicApiKey && <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />}
+          {/* Gemini API Key */}
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 space-y-4 max-w-lg">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center text-base">✨</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Google Gemini</p>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">gemini-2.5-flash</p>
               </div>
-              <div className="relative">
-                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 dark:text-zinc-600" />
-                <input
-                  type={showAnthropic ? 'text' : 'password'}
-                  value={settings.anthropicApiKey}
-                  onChange={(e) => setSettings({ ...settings, anthropicApiKey: e.target.value })}
-                  placeholder="sk-ant-..."
-                  className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-violet-400/60 dark:focus:border-violet-500/50 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 rounded-xl pl-9 pr-10 py-2.5 text-sm outline-none transition-all"
-                />
-                <button onClick={() => setShowAnthropic(!showAnthropic)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
-                  {showAnthropic ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
+              {settings.geminiApiKey && <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />}
             </div>
-
-            {/* Gemini */}
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center text-base">✨</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Google Gemini</p>
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500">gemini-2.5-flash</p>
-                </div>
-                {settings.geminiApiKey && <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />}
-              </div>
-              <div className="relative">
-                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 dark:text-zinc-600" />
-                <input
-                  type={showGemini ? 'text' : 'password'}
-                  value={settings.geminiApiKey}
-                  onChange={(e) => setSettings({ ...settings, geminiApiKey: e.target.value })}
-                  placeholder="AIza..."
-                  className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-violet-400/60 dark:focus:border-violet-500/50 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 rounded-xl pl-9 pr-10 py-2.5 text-sm outline-none transition-all"
-                />
-                <button onClick={() => setShowGemini(!showGemini)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
-                  {showGemini ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
+            <div className="relative">
+              <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 dark:text-zinc-600" />
+              <input
+                type={showGemini ? 'text' : 'password'}
+                value={settings.geminiApiKey}
+                onChange={(e) => setSettings({ ...settings, geminiApiKey: e.target.value })}
+                placeholder="AIza..."
+                className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-violet-400/60 dark:focus:border-violet-500/50 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 rounded-xl pl-9 pr-10 py-2.5 text-sm outline-none transition-all"
+              />
+              <button onClick={() => setShowGemini(!showGemini)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
+                {showGemini ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
             </div>
           </div>
 
-          {/* Priority + Max Tokens — side by side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Priority */}
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Zap className="w-4 h-4 text-yellow-500" />
-                <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Priority Provider</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {(['anthropic', 'gemini'] as const).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setSettings({ ...settings, priority: p })}
-                    className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all duration-150 border ${
-                      settings.priority === p
-                        ? 'bg-violet-600 border-violet-500 text-white'
-                        : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600'
-                    }`}
-                  >
-                    {p === 'anthropic' ? '🤖 Anthropic' : '✨ Gemini'}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-3">Auto-falls back if primary fails.</p>
+          {/* Max Tokens */}
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 max-w-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <Hash className="w-4 h-4 text-violet-500" />
+              <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Max Tokens</p>
             </div>
-
-            {/* Max Tokens */}
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Hash className="w-4 h-4 text-violet-500" />
-                <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Max Tokens</p>
-              </div>
-              <input
-                type="number"
-                min={256}
-                max={8192}
-                step={256}
-                value={settings.maxTokens}
-                onChange={(e) => setSettings({ ...settings, maxTokens: Number(e.target.value) })}
-                className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-violet-400/60 dark:focus:border-violet-500/50 text-zinc-900 dark:text-zinc-100 rounded-xl px-4 py-2.5 text-sm outline-none transition-all"
-              />
-              <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-3">
-                Controls summary length. Default: 1024 · Range: 256–8192.
-              </p>
-            </div>
+            <input
+              type="number"
+              min={256}
+              max={8192}
+              step={256}
+              value={settings.maxTokens}
+              onChange={(e) => setSettings({ ...settings, maxTokens: Number(e.target.value) })}
+              className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-violet-400/60 dark:focus:border-violet-500/50 text-zinc-900 dark:text-zinc-100 rounded-xl px-4 py-2.5 text-sm outline-none transition-all"
+            />
+            <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-3">
+              Controls summary length. Default: 1024 · Range: 256–8192.
+            </p>
           </div>
         </div>
       )}

@@ -4,9 +4,7 @@ import { connectDB } from '@/lib/mongodb';
 import Settings from '@/models/Settings';
 
 const DEFAULT: Record<string, unknown> = {
-  anthropicApiKey: '',
   geminiApiKey: '',
-  priority: 'anthropic',
   maxTokens: 1024,
   userCategories: [],
   onboardingCompleted: false,
@@ -22,9 +20,7 @@ export async function GET() {
     if (!settings) return NextResponse.json(DEFAULT);
 
     return NextResponse.json({
-      anthropicApiKey: settings.anthropicApiKey ?? '',
       geminiApiKey: settings.geminiApiKey ?? '',
-      priority: settings.priority ?? 'anthropic',
       maxTokens: settings.maxTokens ?? 1024,
       userCategories: settings.userCategories ?? [],
       onboardingCompleted: settings.onboardingCompleted ?? false,
@@ -44,9 +40,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const update: Record<string, unknown> = {};
 
-    if (body.anthropicApiKey !== undefined) update.anthropicApiKey = body.anthropicApiKey;
     if (body.geminiApiKey !== undefined) update.geminiApiKey = body.geminiApiKey;
-    if (body.priority !== undefined) update.priority = body.priority;
     if (body.maxTokens !== undefined) update.maxTokens = Number(body.maxTokens) || 1024;
     if (body.userCategories !== undefined) update.userCategories = body.userCategories;
     if (body.onboardingCompleted !== undefined) update.onboardingCompleted = body.onboardingCompleted;
@@ -58,9 +52,7 @@ export async function POST(req: Request) {
     ).lean();
 
     return NextResponse.json({
-      anthropicApiKey: settings.anthropicApiKey ?? '',
       geminiApiKey: settings.geminiApiKey ?? '',
-      priority: settings.priority ?? 'anthropic',
       maxTokens: settings.maxTokens ?? 1024,
       userCategories: settings.userCategories ?? [],
       onboardingCompleted: settings.onboardingCompleted ?? false,
