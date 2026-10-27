@@ -7,9 +7,7 @@ const UserCategorySchema = new Schema(
 
 export interface ISettings extends Document {
   userId: string;
-  anthropicApiKey: string;
   geminiApiKey: string;
-  priority: 'anthropic' | 'gemini';
   maxTokens: number;
   userCategories: Array<{ name: string; emoji: string }>;
   onboardingCompleted: boolean;
@@ -17,9 +15,7 @@ export interface ISettings extends Document {
 
 const SettingsSchema = new Schema<ISettings>({
   userId: { type: String, required: true, unique: true, index: true },
-  anthropicApiKey: { type: String, default: '' },
   geminiApiKey: { type: String, default: '' },
-  priority: { type: String, enum: ['anthropic', 'gemini'], default: 'anthropic' },
   maxTokens: { type: Number, default: 1024 },
   userCategories: [UserCategorySchema],
   onboardingCompleted: { type: Boolean, default: false },

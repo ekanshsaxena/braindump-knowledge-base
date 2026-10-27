@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { CategorizeResult, UserCategory } from '@/types';
 
@@ -34,12 +33,10 @@ function buildUserPrompt(content: string): string {
 }
 
 function stripLeadingEmoji(str: string): string {
-  // Remove any leading emoji / non-word characters so names stay text-only
   return str.replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/u, '').trim();
 }
 
 function extractJSON(raw: string): CategorizeResult {
-  // Strip markdown code fences (Gemini often wraps output in ```json ... ```)
   const stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
   const start = stripped.indexOf('{');
   const end = stripped.lastIndexOf('}');
@@ -48,7 +45,6 @@ function extractJSON(raw: string): CategorizeResult {
     throw new Error('No JSON object found in response');
   }
   const parsed = JSON.parse(stripped.slice(start, end + 1)) as CategorizeResult;
-  // Ensure category names never contain the emoji (AI sometimes puts emoji in both fields)
   if (Array.isArray(parsed.categories)) {
     parsed.categories = parsed.categories.map((c) => ({
       emoji: c.emoji?.trim() ?? '📌',
@@ -58,37 +54,29 @@ function extractJSON(raw: string): CategorizeResult {
   return parsed;
 }
 
-async function categorizeWithAnthropic(
-  apiKey: string,
+export async function categorizeContent(
   content: string,
-  userCategories: UserCategory[],
-  maxTokens: number
+  _existingCategories: string[],
+  settings: {
+    geminiApiKey: string;
+    maxTokens: number;
+    userCategories: UserCategory[];
+  }
 ): Promise<CategorizeResult> {
-  const client = new Anthropic({ apiKey });
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: maxTokens,
-    system: buildSystemPrompt(userCategories),
-    messages: [{ role: 'user', content: buildUserPrompt(content) }],
-  });
+  const { geminiApiKey, maxTokens, userCategories } = settings;
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '';
-  return extractJSON(text);
-}
+  if (!geminiApiKey) {
+    return {
+      title: '',
+      categories: [{ name: 'Uncategorized', emoji: '📌' }],
+      tags: [],
+      summary: content,
+    };
+  }
 
-async function categorizeWithGemini(
-  apiKey: string,
-  content: string,
-  userCategories: UserCategory[],
-  maxTokens: number
-): Promise<CategorizeResult> {
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const genAI = new GoogleGenerativeAI(geminiApiKey);
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
-    // thinkingBudget:0 disables internal reasoning tokens so the full maxOutputTokens
-    // budget is available for the actual JSON response (otherwise thinking burns it all)
-    // Use at least 4096 tokens: 1024 default is too small once you account for
-    // structured markdown summary + up to 50 tags wrapped in a JSON object.
     generationConfig: { maxOutputTokens: Math.max(maxTokens, 4096), thinkingConfig: { thinkingBudget: 0 } } as Parameters<typeof genAI.getGenerativeModel>[0]['generationConfig'],
   });
 
@@ -96,49 +84,4 @@ async function categorizeWithGemini(
   const result = await model.generateContent(prompt);
   const raw = result.response.text();
   return extractJSON(raw);
-}
-
-export async function categorizeContent(
-  content: string,
-  _existingCategories: string[],
-  settings: {
-    anthropicApiKey: string;
-    geminiApiKey: string;
-    priority: 'anthropic' | 'gemini';
-    maxTokens: number;
-    userCategories: UserCategory[];
-  }
-): Promise<CategorizeResult> {
-  const { anthropicApiKey, geminiApiKey, priority, maxTokens, userCategories } = settings;
-
-  const primary = priority === 'anthropic'
-    ? { key: anthropicApiKey, fn: categorizeWithAnthropic }
-    : { key: geminiApiKey, fn: categorizeWithGemini };
-
-  const fallback = priority === 'anthropic'
-    ? { key: geminiApiKey, fn: categorizeWithGemini }
-    : { key: anthropicApiKey, fn: categorizeWithAnthropic };
-
-  if (primary.key) {
-    try {
-      return await primary.fn(primary.key, content, userCategories, maxTokens);
-    } catch (err) {
-      console.error(`Primary AI (${priority}) failed:`, err);
-    }
-  }
-
-  if (fallback.key) {
-    try {
-      return await fallback.fn(fallback.key, content, userCategories, maxTokens);
-    } catch (err) {
-      console.error(`Fallback AI failed:`, err);
-    }
-  }
-
-  return {
-    title: '',
-    categories: [{ name: 'Uncategorized', emoji: '📌' }],
-    tags: [],
-    summary: content,
-  };
 }

@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     if (!content) return NextResponse.json({ error: 'Content required' }, { status: 400 });
 
     const settings = await Settings.findOne({ userId }).lean();
-    if (!settings?.anthropicApiKey && !settings?.geminiApiKey) {
+    if (!settings?.geminiApiKey) {
       return NextResponse.json({
         categories: [{ name: 'Uncategorized', emoji: '📌' }],
         tags: [],
