@@ -4,7 +4,8 @@
   "name": "knowledge-assistant",
   "compatibility_date": "2026-10-23",
   "compatibility_flags": [
-    "global_fetch_strictly_public"
+    "global_fetch_strictly_public",
+    "nodejs_compat_v2"
   ],
   "assets": {
     "directory": ".open-next/assets",

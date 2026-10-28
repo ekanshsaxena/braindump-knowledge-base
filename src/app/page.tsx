@@ -47,10 +47,14 @@ export default function Home() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
   useEffect(() => {
+    if (sessionStorage.getItem('onboardingCompleted')) return;
     fetch('/api/settings')
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) return null;
+        return r.json();
+      })
       .then((data) => {
-        if (!data.onboardingCompleted) {
+        if (data && !data.onboardingCompleted) {
           router.push('/onboarding');
         }
       })

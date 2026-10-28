@@ -59,19 +59,25 @@ export default function OnboardingPage() {
         body: JSON.stringify({ userCategories: selected, onboardingCompleted: true }),
       });
       toast.success('Categories saved!');
-      router.push('/');
     } catch {
-      toast.error('Failed to save. Try again.');
-      setSaving(false);
+      toast.error('Failed to save. Continuing anyway.');
+    } finally {
+      sessionStorage.setItem('onboardingCompleted', '1');
+      router.push('/');
     }
   };
 
   const skip = async () => {
-    await fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userCategories: [], onboardingCompleted: true }),
-    });
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userCategories: [], onboardingCompleted: true }),
+      });
+    } catch {
+      // best-effort
+    }
+    sessionStorage.setItem('onboardingCompleted', '1');
     router.push('/');
   };
 
