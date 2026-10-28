@@ -17,13 +17,27 @@ global.mongoose = cached;
 
 export async function connectDB() {
   if (!MONGODB_URI) throw new Error('MONGODB_URI is not defined in environment variables');
-  if (cached.conn) return cached.conn;
+
+  // Reuse only if connection is genuinely open (readyState 1)
+  if (cached.conn && mongoose.connection.readyState === 1) return cached.conn;
+
+  // Stale conn — clear and reconnect
+  if (cached.conn && mongoose.connection.readyState !== 1) {
+    cached.conn = null;
+    cached.promise = null;
+  }
 
   if (!cached.promise) {
     cached.promise = mongoose
-      .connect(MONGODB_URI, { bufferCommands: false })
+      .connect(MONGODB_URI, {
+        bufferCommands: false,
+        maxPoolSize: 5,
+        minPoolSize: 0,
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 10000,
+        socketTimeoutMS: 30000,
+      })
       .catch((err) => {
-        // Clear the cached promise so the next request retries
         cached.promise = null;
         throw err;
       });

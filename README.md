@@ -7,7 +7,7 @@ A personal knowledge management app that uses AI to organize, tag, and surface c
 - **Next.js 16** + TypeScript
 - **MongoDB** (Mongoose) for storage
 - **Clerk** for authentication
-- **Anthropic Claude + Google Gemini** for AI-powered tagging and summarization
+- **Google Gemini 2.5 Flash** for AI-powered tagging and summarization
 - **Open Graph Scraper** for link metadata extraction
 - **Framer Motion** for animations
 - **Tailwind CSS** with typography plugin
