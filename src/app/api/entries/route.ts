@@ -107,11 +107,9 @@ export async function POST(req: Request) {
     const settings = await Settings.findOne({ userId }).lean();
 
     const categorization =
-      settings && (settings.anthropicApiKey || settings.geminiApiKey)
+      settings?.geminiApiKey
         ? await categorizeContent(contentForAI, [], {
-            anthropicApiKey: settings.anthropicApiKey ?? '',
-            geminiApiKey: settings.geminiApiKey ?? '',
-            priority: settings.priority ?? 'anthropic',
+            geminiApiKey: settings.geminiApiKey,
             maxTokens: settings.maxTokens ?? 1024,
             userCategories: settings.userCategories ?? [],
           })
