@@ -13,7 +13,9 @@ Respond with ONLY valid JSON — no markdown fences, no explanation, just the ra
   "title": "Short descriptive title (5–8 words max)",
   "categories": [{"name": "Text only — NO emoji in name", "emoji": "single emoji char"}],
   "tags": ["tag1", "tag2", ...up to 50 tags],
-  "summary": "..."
+  "summary": "...",
+  "insight": "one sentence — the single most important thing to remember from this content",
+  "readingTime": <number of minutes to read the summary, minimum 1>
 }
 
 TITLE: 5–8 word descriptive title capturing the core subject. Not a sentence — just a noun phrase.
@@ -25,7 +27,11 @@ CATEGORIES:
 
 TAGS: Up to 50 tags — include main topics, subtopics, specific scheme names, amounts, places, organizations, key concepts, and any term someone might search for. Mix single words and short phrases.
 
-SUMMARY: Reformat into structured markdown. Use ## headings for sections, - for bullets, numbered lists where order matters, **bold** for key terms. Preserve EVERY detail — all numbers, names, schemes, amounts, and URLs exactly as-is. Do not shorten or omit anything.`;
+SUMMARY: Reformat into structured markdown. Use ## headings for sections, - for bullets, numbered lists where order matters, **bold** for key terms. Preserve EVERY detail — all numbers, names, schemes, amounts, and URLs exactly as-is. Do not shorten or omit anything.
+
+INSIGHT: One concise sentence capturing the key takeaway. Make it actionable or memorable. Max 20 words.
+
+READING_TIME: Estimate minutes to read the SUMMARY (word count / 200, rounded up, minimum 1).`;
 }
 
 function buildUserPrompt(content: string): string {
@@ -71,6 +77,8 @@ export async function categorizeContent(
       categories: [{ name: 'Uncategorized', emoji: '📌' }],
       tags: [],
       summary: content,
+      insight: '',
+      readingTime: 1,
     };
   }
 
