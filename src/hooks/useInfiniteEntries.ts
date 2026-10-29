@@ -13,6 +13,8 @@ interface InfiniteEntriesResult {
   hasMore: boolean;
   loadMore: () => void;
   refresh: () => void;
+  optimisticDelete: (id: string) => void;
+  optimisticUpdate: (id: string, patch: Partial<Entry>) => void;
 }
 
 export function useInfiniteEntries(filters: FilterState): InfiniteEntriesResult {
@@ -132,5 +134,14 @@ export function useInfiniteEntries(filters: FilterState): InfiniteEntriesResult 
     fetchPage(1, false);
   }, [fetchPage]);
 
-  return { entries, categories, tags, total, loading, isRefetching, hasMore, loadMore, refresh };
+  const optimisticDelete = useCallback((id: string) => {
+    setEntries((prev) => prev.filter((e) => e._id !== id));
+    setTotal((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  const optimisticUpdate = useCallback((id: string, patch: Partial<Entry>) => {
+    setEntries((prev) => prev.map((e) => e._id === id ? { ...e, ...patch } : e));
+  }, []);
+
+  return { entries, categories, tags, total, loading, isRefetching, hasMore, loadMore, refresh, optimisticDelete, optimisticUpdate };
 }

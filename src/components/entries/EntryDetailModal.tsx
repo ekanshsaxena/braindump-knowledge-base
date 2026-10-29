@@ -86,10 +86,9 @@ export default function EntryDetailModal({
     onClose();
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!entry) return;
-    await fetch(`/api/entries/${entry._id}`, { method: 'DELETE' });
-    onDeleted(entry._id);
+    onDeleted(entry._id); // page.tsx handles the actual DELETE + optimistic remove
   }
 
   function handleCopyMarkdown() {

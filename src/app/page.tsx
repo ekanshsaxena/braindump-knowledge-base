@@ -49,7 +49,7 @@ export default function Home() {
     search: searchValue,
   };
 
-  const { entries, categories, tags, total, loading, isRefetching, hasMore, loadMore, refresh } =
+  const { entries, categories, tags, total, loading, isRefetching, hasMore, loadMore, refresh, optimisticDelete, optimisticUpdate } =
     useInfiniteEntries(activeFilters);
 
   const pinnedCount = entries.filter((e) => e.pinned).length;
@@ -63,27 +63,28 @@ export default function Home() {
   }, []);
 
   const handlePin = useCallback(async (id: string, pinned: boolean) => {
-    await fetch(`/api/entries/${id}`, {
+    optimisticUpdate(id, { pinned });
+    fetch(`/api/entries/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pinned }),
-    });
-    refresh();
-  }, [refresh]);
+    }).catch(() => optimisticUpdate(id, { pinned: !pinned })); // rollback on fail
+  }, [optimisticUpdate]);
 
   const handleArchive = useCallback(async (id: string) => {
-    await fetch(`/api/entries/${id}`, {
+    optimisticDelete(id); // remove from list immediately
+    fetch(`/api/entries/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ archived: true }),
-    });
-    refresh();
-  }, [refresh]);
+    }).catch(() => refresh()); // rollback on fail
+  }, [optimisticDelete, refresh]);
 
   const handleDelete = useCallback(async (id: string) => {
-    await fetch(`/api/entries/${id}`, { method: 'DELETE' });
-    refresh();
-  }, [refresh]);
+    optimisticDelete(id); // remove from UI immediately
+    fetch(`/api/entries/${id}`, { method: 'DELETE' })
+      .catch(() => refresh()); // if DELETE fails, restore by refreshing
+  }, [optimisticDelete, refresh]);
 
   const handleViewChange = (v: 'card' | 'list') => {
     setView(v);

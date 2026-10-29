@@ -133,10 +133,7 @@ export async function POST(req: Request) {
           userCategories: settings.userCategories ?? [],
         });
       } catch (aiErr) {
-        const errMsg = aiErr instanceof Error ? aiErr.message : String(aiErr);
-        console.error('[POST /api/entries] AI failed:', errMsg);
-        // Store error in categorization for debug header
-        (fallbackCategorization as CategorizeResult & { _aiError?: string })._aiError = errMsg;
+        console.error('[POST /api/entries] AI failed:', aiErr instanceof Error ? aiErr.message : aiErr);
       }
     }
 
@@ -157,10 +154,7 @@ export async function POST(req: Request) {
       readingTime,
     });
 
-    const aiError = (categorization as CategorizeResult & { _aiError?: string })._aiError;
-    const res = NextResponse.json(entry, { status: 201 });
-    if (aiError) res.headers.set('X-AI-Error', aiError.slice(0, 200));
-    return res;
+    return NextResponse.json(entry, { status: 201 });
   } catch (err) {
     console.error('[POST /api/entries]', err);
     return NextResponse.json({ error: 'Failed to save entry' }, { status: 500 });
