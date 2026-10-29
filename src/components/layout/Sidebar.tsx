@@ -40,7 +40,7 @@ export default function Sidebar({
           animate={{ width: 240, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          className="shrink-0 h-screen sticky top-0 overflow-hidden flex flex-col"
+          className="shrink-0 h-screen sticky top-0 overflow-hidden flex flex-col md:relative fixed z-30 md:z-auto"
           style={{
             background: 'var(--surface)',
             borderRight: '1px solid var(--border)',

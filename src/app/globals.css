@@ -42,3 +42,26 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.15);
 }
+
+/* Radix Tabs active state */
+[data-state="active"] {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+/* Line clamp utilities */
+.line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
+.line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+
+/* Prose dark theme overrides */
+.prose-invert { --tw-prose-body: var(--text-secondary); --tw-prose-headings: var(--text-primary); --tw-prose-bold: var(--text-primary); --tw-prose-code: var(--accent-text); --tw-prose-pre-bg: var(--surface-raised); --tw-prose-links: var(--accent-text); }
+
+/* Mobile: sidebar becomes overlay */
+@media (max-width: 768px) {
+  :root { --sidebar-width: 280px; }
+}
+
+/* Smooth color transitions */
+*, *::before, *::after {
+  transition: background-color var(--transition), border-color var(--transition), color var(--transition);
+}
