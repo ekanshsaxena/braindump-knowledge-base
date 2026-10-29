@@ -5,6 +5,7 @@ import EntryModel from '@/models/Entry';
 import Settings from '@/models/Settings';
 import { categorizeContent } from '@/lib/ai';
 import { extractUrls, fetchUrlMetadata } from '@/lib/metadata';
+import type { CategorizeResult } from '@/types';
 
 export async function GET(req: Request) {
   try {
@@ -121,14 +122,20 @@ export async function POST(req: Request) {
 
     const settings = await Settings.findOne({ userId }).lean();
 
-    const categorization =
-      settings?.geminiApiKey
-        ? await categorizeContent(contentForAI, [], {
-            geminiApiKey: settings.geminiApiKey,
-            maxTokens: settings.maxTokens ?? 1024,
-            userCategories: settings.userCategories ?? [],
-          })
-        : { title: '', categories: [{ name: 'Uncategorized', emoji: '📌' }], tags: [], summary: content.slice(0, 120), insight: '', readingTime: 1 };
+    const fallbackCategorization: CategorizeResult = { title: '', categories: [{ name: 'Uncategorized', emoji: '📌' }], tags: [], summary: content.slice(0, 120), insight: '', readingTime: 1 };
+
+    let categorization: CategorizeResult = fallbackCategorization;
+    if (settings?.geminiApiKey) {
+      try {
+        categorization = await categorizeContent(contentForAI, [], {
+          geminiApiKey: settings.geminiApiKey,
+          maxTokens: settings.maxTokens ?? 1024,
+          userCategories: settings.userCategories ?? [],
+        });
+      } catch (aiErr) {
+        console.error('[POST /api/entries] AI categorization failed, saving with fallback:', aiErr instanceof Error ? aiErr.message : aiErr);
+      }
+    }
 
     const wordCount = content.split(/\s+/).length;
     const readingTime = categorization.readingTime ?? Math.max(1, Math.ceil(wordCount / 200));

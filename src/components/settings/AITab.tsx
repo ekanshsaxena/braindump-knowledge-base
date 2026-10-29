@@ -41,7 +41,7 @@ export default function AITab() {
           <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base" style={{ background: 'rgba(59,130,246,0.1)' }}>✨</div>
           <div className="flex-1">
             <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Google Gemini</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>gemini-2.5-flash</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>gemini-1.5-flash</p>
           </div>
           {geminiApiKey && <CheckCircle className="w-4 h-4" style={{ color: 'var(--success)' }} />}
         </div>

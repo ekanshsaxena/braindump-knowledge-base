@@ -22,20 +22,16 @@ TITLE: 5–8 word descriptive title capturing the core subject. Not a sentence �
 
 CATEGORIES:
 - Map to every matching user category listed above
-- Also create specific new sub-categories when useful (e.g. grant content → include "Startup" from user list AND add new "Funding & Grants")
+- Also create specific new sub-categories when useful
 - 2–4 words per category name, at least one category always
 
-TAGS: Up to 50 tags — include main topics, subtopics, specific scheme names, amounts, places, organizations, key concepts, and any term someone might search for. Mix single words and short phrases.
+TAGS: Up to 50 tags — include main topics, subtopics, specific names, amounts, places, organizations, key concepts.
 
-SUMMARY: Reformat into structured markdown. Use ## headings for sections, - for bullets, numbered lists where order matters, **bold** for key terms. Preserve EVERY detail — all numbers, names, schemes, amounts, and URLs exactly as-is. Do not shorten or omit anything.
+SUMMARY: Reformat into structured markdown. Use ## headings, - for bullets, **bold** for key terms. Preserve ALL details.
 
-INSIGHT: One concise sentence capturing the key takeaway. Make it actionable or memorable. Max 20 words.
+INSIGHT: One concise sentence capturing the key takeaway. Max 20 words.
 
 READING_TIME: Estimate minutes to read the SUMMARY (word count / 200, rounded up, minimum 1).`;
-}
-
-function buildUserPrompt(content: string): string {
-  return `Categorize and summarize this content:\n\n${content}`;
 }
 
 function stripLeadingEmoji(str: string): string {
@@ -72,23 +68,17 @@ export async function categorizeContent(
   const { geminiApiKey, maxTokens, userCategories } = settings;
 
   if (!geminiApiKey) {
-    return {
-      title: '',
-      categories: [{ name: 'Uncategorized', emoji: '📌' }],
-      tags: [],
-      summary: content,
-      insight: '',
-      readingTime: 1,
-    };
+    return { title: '', categories: [{ name: 'Uncategorized', emoji: '📌' }], tags: [], summary: content, insight: '', readingTime: 1 };
   }
 
   const genAI = new GoogleGenerativeAI(geminiApiKey);
+  // gemini-1.5-flash: broader regional availability, no thinkingConfig needed
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    generationConfig: { maxOutputTokens: Math.max(maxTokens, 4096), thinkingConfig: { thinkingBudget: 0 } } as Parameters<typeof genAI.getGenerativeModel>[0]['generationConfig'],
+    model: 'gemini-1.5-flash',
+    generationConfig: { maxOutputTokens: Math.max(maxTokens, 4096), temperature: 0.2 },
   });
 
-  const prompt = `${buildSystemPrompt(userCategories)}\n\n${buildUserPrompt(content)}`;
+  const prompt = `${buildSystemPrompt(userCategories)}\n\nCategorize and summarize this content:\n\n${content}`;
   const result = await model.generateContent(prompt);
   const raw = result.response.text();
   return extractJSON(raw);

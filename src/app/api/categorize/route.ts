@@ -22,8 +22,19 @@ export async function POST(req: Request) {
       });
     }
 
-    const result = await categorizeContent(content, settings?.userCategories ?? [], settings);
-    return NextResponse.json(result);
+    try {
+      const result = await categorizeContent(content, settings?.userCategories ?? [], settings);
+      return NextResponse.json(result);
+    } catch (aiErr) {
+      console.error('[POST /api/categorize] AI failed:', aiErr instanceof Error ? aiErr.message : aiErr);
+      return NextResponse.json({
+        categories: [{ name: 'Uncategorized', emoji: '📌' }],
+        tags: [],
+        summary: content.slice(0, 120),
+        insight: '',
+        readingTime: 1,
+      });
+    }
   } catch (err) {
     console.error('[POST /api/categorize]', err);
     return NextResponse.json({ error: 'Categorization failed' }, { status: 500 });
