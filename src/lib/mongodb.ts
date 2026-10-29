@@ -33,9 +33,11 @@ export async function connectDB() {
         bufferCommands: false,
         maxPoolSize: 5,
         minPoolSize: 0,
-        serverSelectionTimeoutMS: 5000,
-        connectTimeoutMS: 10000,
-        socketTimeoutMS: 30000,
+        serverSelectionTimeoutMS: 8000,
+        connectTimeoutMS: 12000,
+        socketTimeoutMS: 25000,
+        heartbeatFrequencyMS: 15000,   // keep connection warm between requests
+        maxIdleTimeMS: 30000,
       })
       .catch((err) => {
         cached.promise = null;

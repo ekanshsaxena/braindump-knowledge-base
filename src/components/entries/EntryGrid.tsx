@@ -11,6 +11,7 @@ import type { Entry } from '@/types';
 interface EntryGridProps {
   entries: Entry[];
   loading: boolean;
+  isRefetching?: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
   view: 'card' | 'list';
@@ -25,6 +26,7 @@ interface EntryGridProps {
 export default function EntryGrid({
   entries,
   loading,
+  isRefetching = false,
   hasMore,
   onLoadMore,
   view,
@@ -54,6 +56,7 @@ export default function EntryGrid({
     return () => observer.disconnect();
   }, [hasMore, loading, onLoadMore]);
 
+  // Only show pure skeletons on first load with no data
   if (loading && entries.length === 0) {
     return (
       <div className={view === 'card'
@@ -88,6 +91,16 @@ export default function EntryGrid({
 
   return (
     <div>
+      {/* Subtle refetch indicator — no skeleton flash */}
+      {isRefetching && (
+        <div className="h-0.5 mb-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-raised)' }}>
+          <div
+            className="h-full rounded-full animate-pulse"
+            style={{ background: 'var(--accent)', width: '40%' }}
+          />
+        </div>
+      )}
+
       {label && (
         <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
           {label}

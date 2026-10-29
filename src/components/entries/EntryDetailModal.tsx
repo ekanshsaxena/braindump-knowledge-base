@@ -17,27 +17,46 @@ import type { Entry } from '@/types';
 
 interface EntryDetailModalProps {
   entryId: string | null;
+  initialEntry?: Entry;      // from the card — shows immediately, no loading flash
   onClose: () => void;
   onDeleted: (id: string) => void;
   onTagFilter: (tag: string) => void;
+  onRefreshList?: () => void;
 }
 
-export default function EntryDetailModal({ entryId, onClose, onDeleted, onTagFilter }: EntryDetailModalProps) {
-  const [entry, setEntry] = useState<Entry | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function EntryDetailModal({
+  entryId, initialEntry, onClose, onDeleted, onTagFilter, onRefreshList
+}: EntryDetailModalProps) {
+  const [entry, setEntry] = useState<Entry | null>(initialEntry ?? null);
+  const [fullLoading, setFullLoading] = useState(!initialEntry); // only show loader if no initial data
   const [editing, setEditing] = useState(false);
   const [openRelatedId, setOpenRelatedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!entryId) return;
-    setLoading(true);
     setEditing(false);
+
+    // If we have initial data, show immediately and fetch full entry in background
+    if (initialEntry && initialEntry._id === entryId) {
+      setEntry(initialEntry);
+      setFullLoading(false);
+      // Background fetch for full data (sourceContent, complete summary)
+      fetch(`/api/entries/${entryId}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data) setEntry(data); })
+        .catch(() => {});
+      return;
+    }
+
+    // No initial data — fetch and show loader
+    setFullLoading(true);
     setEntry(null);
     fetch(`/api/entries/${entryId}`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => setEntry(data))
       .catch(() => setEntry(null))
-      .finally(() => setLoading(false));
+      .finally(() => setFullLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryId]);
 
   async function handlePin() {
@@ -50,6 +69,7 @@ export default function EntryDetailModal({ entryId, onClose, onDeleted, onTagFil
     if (res.ok) {
       const updated = await res.json();
       setEntry(updated);
+      onRefreshList?.();
       toast.success(updated.pinned ? 'Pinned!' : 'Unpinned');
     }
   }
@@ -61,6 +81,7 @@ export default function EntryDetailModal({ entryId, onClose, onDeleted, onTagFil
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ archived: true }),
     });
+    onRefreshList?.();
     toast.success('Archived');
     onClose();
   }
@@ -78,32 +99,48 @@ export default function EntryDetailModal({ entryId, onClose, onDeleted, onTagFil
     toast.success('Copied to clipboard!');
   }
 
-  const domain = entry?.url
-    ? (() => { try { return new URL(entry.url).hostname.replace('www.', ''); } catch { return ''; } })()
-    : '';
-
-  // Handle viewing a related entry
+  // Open related entry inline
   useEffect(() => {
     if (!openRelatedId) return;
-    setLoading(true);
+    setFullLoading(true);
     setEditing(false);
     fetch(`/api/entries/${openRelatedId}`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => setEntry(data))
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => setFullLoading(false));
     setOpenRelatedId(null);
   }, [openRelatedId]);
 
+  const domain = entry?.url
+    ? (() => { try { return new URL(entry.url).hostname.replace('www.', ''); } catch { return ''; } })()
+    : '';
+
   return (
     <Modal open={!!entryId} onClose={onClose}>
-      {loading ? (
+      {fullLoading && !entry ? (
         <div className="flex items-center justify-center p-16">
           <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--accent)' }} />
         </div>
       ) : !entry ? (
         <div className="p-8 text-center" style={{ color: 'var(--text-muted)' }}>
-          Entry not found
+          <p className="text-sm">Failed to load entry</p>
+          <button
+            onClick={() => {
+              if (entryId) {
+                setFullLoading(true);
+                fetch(`/api/entries/${entryId}`)
+                  .then((r) => r.ok ? r.json() : null)
+                  .then((data) => setEntry(data))
+                  .catch(() => {})
+                  .finally(() => setFullLoading(false));
+              }
+            }}
+            className="mt-3 text-xs px-3 py-1.5 rounded-lg transition-colors"
+            style={{ background: 'var(--accent-dim)', color: 'var(--accent-text)' }}
+          >
+            Retry
+          </button>
         </div>
       ) : (
         <motion.div
@@ -128,7 +165,7 @@ export default function EntryDetailModal({ entryId, onClose, onDeleted, onTagFil
           )}
 
           {/* Title */}
-          <h2 className="text-xl font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
+          <h2 className="text-xl font-bold leading-snug pr-8" style={{ color: 'var(--text-primary)' }}>
             {entry.title || 'Untitled'}
           </h2>
 
@@ -136,11 +173,7 @@ export default function EntryDetailModal({ entryId, onClose, onDeleted, onTagFil
           {entry.insight && (
             <div
               className="px-4 py-3 rounded-xl text-sm leading-relaxed"
-              style={{
-                background: 'var(--accent-dim)',
-                borderLeft: '3px solid var(--accent)',
-                color: 'var(--accent-text)',
-              }}
+              style={{ background: 'var(--accent-dim)', borderLeft: '3px solid var(--accent)', color: 'var(--accent-text)' }}
             >
               {entry.insight}
             </div>
@@ -150,14 +183,11 @@ export default function EntryDetailModal({ entryId, onClose, onDeleted, onTagFil
           {editing ? (
             <EntryEditForm
               entry={entry}
-              onSave={(updated) => { setEntry(updated); setEditing(false); }}
+              onSave={(updated) => { setEntry(updated); setEditing(false); onRefreshList?.(); }}
               onCancel={() => setEditing(false)}
             />
           ) : (
-            <div
-              className="prose prose-sm prose-invert max-w-none text-sm leading-relaxed"
-              style={{ color: 'var(--text-secondary)' }}
-            >
+            <div className="prose prose-sm prose-invert max-w-none text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {entry.summary || entry.content}
               </ReactMarkdown>

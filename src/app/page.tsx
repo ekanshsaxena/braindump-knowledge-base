@@ -24,6 +24,7 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
   const [openEntryId, setOpenEntryId] = useState<string | null>(null);
+  const [openEntry, setOpenEntry] = useState<Entry | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [view, setView] = useState<'card' | 'list'>('card');
   const [filters, setFilters] = useState<FilterState>({ sort: 'newest' });
@@ -48,7 +49,7 @@ export default function Home() {
     search: searchValue,
   };
 
-  const { entries, categories, tags, total, loading, hasMore, loadMore, refresh } =
+  const { entries, categories, tags, total, loading, isRefetching, hasMore, loadMore, refresh } =
     useInfiniteEntries(activeFilters);
 
   const pinnedCount = entries.filter((e) => e.pinned).length;
@@ -205,7 +206,7 @@ export default function Home() {
               hasMore={false}
               onLoadMore={() => {}}
               view={view}
-              onOpen={setOpenEntryId}
+              onOpen={(id) => { setOpenEntryId(id); setOpenEntry(pinnedEntries.find((e) => e._id === id) ?? null); }}
               onPin={handlePin}
               onArchive={handleArchive}
               onDelete={handleDelete}
@@ -217,10 +218,15 @@ export default function Home() {
         <EntryGrid
           entries={filters.category === undefined && !filters.tag && !searchValue ? unpinnedEntries : entries}
           loading={loading}
+          isRefetching={isRefetching}
           hasMore={hasMore}
           onLoadMore={loadMore}
           view={view}
-          onOpen={setOpenEntryId}
+          onOpen={(id) => {
+            const found = entries.find((e) => e._id === id) ?? unpinnedEntries.find((e) => e._id === id) ?? null;
+            setOpenEntryId(id);
+            setOpenEntry(found);
+          }}
           onPin={handlePin}
           onArchive={handleArchive}
           onDelete={handleDelete}
@@ -243,13 +249,15 @@ export default function Home() {
         onToggleTheme={toggleTheme}
       />
 
-      {/* Entry detail modal */}
+      {/* Entry detail modal — opens instantly with card data */}
       {openEntryId && (
         <EntryDetailModal
           entryId={openEntryId}
-          onClose={() => setOpenEntryId(null)}
-          onDeleted={(id) => { handleDelete(id); setOpenEntryId(null); }}
-          onTagFilter={(tag) => { setFilters((prev) => ({ ...prev, tag })); setOpenEntryId(null); }}
+          initialEntry={openEntry ?? undefined}
+          onClose={() => { setOpenEntryId(null); setOpenEntry(null); }}
+          onDeleted={(id) => { handleDelete(id); setOpenEntryId(null); setOpenEntry(null); }}
+          onTagFilter={(tag) => { setFilters((prev) => ({ ...prev, tag })); setOpenEntryId(null); setOpenEntry(null); }}
+          onRefreshList={refresh}
         />
       )}
     </AppShell>
