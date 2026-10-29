@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { CategorizeResult, UserCategory } from '@/types';
 
 function buildSystemPrompt(userCategories: UserCategory[]): string {
@@ -19,19 +18,11 @@ Respond with ONLY valid JSON — no markdown fences, no explanation, just the ra
 }
 
 TITLE: 5–8 word descriptive title capturing the core subject. Not a sentence — just a noun phrase.
-
-CATEGORIES:
-- Map to every matching user category listed above
-- Also create specific new sub-categories when useful
-- 2–4 words per category name, at least one category always
-
-TAGS: Up to 50 tags — include main topics, subtopics, specific names, amounts, places, organizations, key concepts.
-
-SUMMARY: Reformat into structured markdown. Use ## headings, - for bullets, **bold** for key terms. Preserve ALL details.
-
-INSIGHT: One concise sentence capturing the key takeaway. Max 20 words.
-
-READING_TIME: Estimate minutes to read the SUMMARY (word count / 200, rounded up, minimum 1).`;
+CATEGORIES: Map to matching user categories. Also create specific sub-categories. 2–4 words per name.
+TAGS: Up to 50 — topics, names, organizations, key concepts. Mix single words and short phrases.
+SUMMARY: Structured markdown. ## headings, - bullets, **bold** key terms. Preserve ALL details.
+INSIGHT: One concise sentence, max 20 words.
+READING_TIME: word_count / 200, rounded up, minimum 1.`;
 }
 
 function stripLeadingEmoji(str: string): string {
@@ -71,15 +62,41 @@ export async function categorizeContent(
     return { title: '', categories: [{ name: 'Uncategorized', emoji: '📌' }], tags: [], summary: content, insight: '', readingTime: 1 };
   }
 
-  const genAI = new GoogleGenerativeAI(geminiApiKey);
-  // gemini-1.5-flash: broader regional availability, no thinkingConfig needed
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
-    generationConfig: { maxOutputTokens: Math.max(maxTokens, 4096), temperature: 0.2 },
+  const prompt = `${buildSystemPrompt(userCategories)}\n\nCategorize and summarize this content:\n\n${content}`;
+
+  // Use direct REST fetch so we can optionally route through CF AI Gateway (set CF_AI_GATEWAY_URL env var)
+  // to bypass Gemini's regional restrictions from CF Workers in India.
+  const gatewayBase = process.env.CF_AI_GATEWAY_URL?.replace(/\/$/, '');
+  const apiUrl = gatewayBase
+    ? `${gatewayBase}/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent`
+    : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (gatewayBase) headers['x-goog-api-key'] = geminiApiKey;
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        maxOutputTokens: Math.max(maxTokens, 4096),
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+    }),
   });
 
-  const prompt = `${buildSystemPrompt(userCategories)}\n\nCategorize and summarize this content:\n\n${content}`;
-  const result = await model.generateContent(prompt);
-  const raw = result.response.text();
+  if (!response.ok) {
+    const errText = await response.text().catch(() => response.statusText);
+    throw new Error(`Gemini ${response.status}: ${errText.slice(0, 300)}`);
+  }
+
+  const data = await response.json() as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  if (!raw) throw new Error('Empty Gemini response');
+
   return extractJSON(raw);
 }
