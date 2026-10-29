@@ -1,246 +1,251 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Brain, Menu, X, RefreshCw, Sun, Moon } from 'lucide-react';
-import DumpBox from '@/components/DumpBox';
-import EntryCard from '@/components/EntryCard';
-import CategorySidebar from '@/components/CategorySidebar';
-import SearchBar from '@/components/SearchBar';
-import { Entry, Category } from '@/types';
+import { motion } from 'framer-motion';
+import { Menu, Settings, Search, Sun, Moon, RefreshCw, Pin, X } from 'lucide-react';
+import Link from 'next/link';
+import AppShell from '@/components/layout/AppShell';
+import Sidebar from '@/components/layout/Sidebar';
+import DumpBox from '@/components/capture/DumpBox';
+import EntryGrid from '@/components/entries/EntryGrid';
+import FilterBar from '@/components/search/FilterBar';
+import { useInfiniteEntries } from '@/hooks/useInfiniteEntries';
+import { useTheme } from '@/hooks/useTheme';
+import type { FilterState, Entry } from '@/types';
 
-function useTheme() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-
-  useEffect(() => {
-    const saved = localStorage.getItem('theme') as 'dark' | 'light' | null;
-    const initial = saved ?? 'dark';
-    setTheme(initial);
-    document.documentElement.classList.toggle('dark', initial === 'dark');
-  }, []);
-
-  const toggle = () => {
-    setTheme((t) => {
-      const next = t === 'dark' ? 'light' : 'dark';
-      localStorage.setItem('theme', next);
-      document.documentElement.classList.toggle('dark', next === 'dark');
-      return next;
-    });
-  };
-
-  return { theme, toggle };
-}
+// Placeholder: Task 6 will fill this in
+const EntryDetailModal = ({ entryId, onClose, onDeleted, onTagFilter }: {
+  entryId: string | null;
+  onClose: () => void;
+  onDeleted: (id: string) => void;
+  onTagFilter: (tag: string) => void;
+}) => null;
 
 export default function Home() {
   const router = useRouter();
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [total, setTotal] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const { theme, toggle: toggleTheme } = useTheme();
-  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [openEntryId, setOpenEntryId] = useState<string | null>(null);
+  const [searchValue, setSearchValue] = useState('');
+  const [view, setView] = useState<'card' | 'list'>('card');
+  const [filters, setFilters] = useState<FilterState>({ sort: 'newest' });
 
+  // Check onboarding
   useEffect(() => {
     if (sessionStorage.getItem('onboardingCompleted')) return;
     fetch('/api/settings')
-      .then((r) => {
-        if (!r.ok) return null;
-        return r.json();
-      })
-      .then((data) => {
-        if (data && !data.onboardingCompleted) {
-          router.push('/onboarding');
-        }
-      })
+      .then((r) => { if (!r.ok) return null; return r.json(); })
+      .then((data) => { if (data && !data.onboardingCompleted) router.push('/onboarding'); })
       .catch(() => {});
   }, [router]);
 
+  // Load view preference
   useEffect(() => {
-    if (searchDebounce.current) clearTimeout(searchDebounce.current);
-    searchDebounce.current = setTimeout(() => setDebouncedSearch(search), 350);
-    return () => {
-      if (searchDebounce.current) clearTimeout(searchDebounce.current);
-    };
-  }, [search]);
+    const savedView = localStorage.getItem('braindump-view') as 'card' | 'list' | null;
+    if (savedView) setView(savedView);
+  }, []);
 
-  const fetchEntries = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (debouncedSearch) params.set('search', debouncedSearch);
-      if (selectedCategory !== 'all') params.set('category', selectedCategory);
+  const activeFilters: FilterState = {
+    ...filters,
+    search: searchValue,
+  };
 
-      const res = await fetch(`/api/entries?${params}`);
-      const data = await res.json();
-      if (!res.ok) {
-        console.error('Entries fetch failed:', res.status, data?.error);
-        return;
-      }
-      setEntries(data.entries || []);
-      setCategories(data.categories || []);
-      setTotal(data.total || 0);
-    } catch (err) {
-      console.error('Entries fetch error:', err);
-    } finally {
-      setLoading(false);
+  const { entries, categories, tags, total, loading, hasMore, loadMore, refresh } =
+    useInfiniteEntries(activeFilters);
+
+  const pinnedCount = entries.filter((e) => e.pinned).length;
+
+  const handleClearFilter = useCallback((key: keyof FilterState) => {
+    if (key === 'search') {
+      setSearchValue('');
+    } else {
+      setFilters((prev) => ({ ...prev, [key]: undefined }));
     }
-  }, [debouncedSearch, selectedCategory]);
+  }, []);
 
-  useEffect(() => {
-    fetchEntries();
-  }, [fetchEntries]);
+  const handlePin = useCallback(async (id: string, pinned: boolean) => {
+    await fetch(`/api/entries/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinned }),
+    });
+    refresh();
+  }, [refresh]);
 
-  const handleEntryAdded = () => {
-    fetchEntries();
-    setSelectedCategory('all');
-    setSearch('');
+  const handleArchive = useCallback(async (id: string) => {
+    await fetch(`/api/entries/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived: true }),
+    });
+    refresh();
+  }, [refresh]);
+
+  const handleDelete = useCallback(async (id: string) => {
+    await fetch(`/api/entries/${id}`, { method: 'DELETE' });
+    refresh();
+  }, [refresh]);
+
+  const handleViewChange = (v: 'card' | 'list') => {
+    setView(v);
+    localStorage.setItem('braindump-view', v);
   };
 
-  const handleEntryDeleted = (id: string) => {
-    setEntries((prev) => prev.filter((e) => e._id !== id));
-    setTotal((prev) => prev - 1);
-    setTimeout(fetchEntries, 300);
-  };
+  const pinnedEntries = entries.filter((e: Entry) => e.pinned);
+  const unpinnedEntries = entries.filter((e: Entry) => !e.pinned);
+
+  const sidebar = (
+    <Sidebar
+      activeTab="browse"
+      categories={categories}
+      tags={tags}
+      selectedCategory={filters.category ?? 'all'}
+      selectedTag={filters.tag ?? ''}
+      onCategorySelect={(name) => setFilters((prev) => ({ ...prev, category: name, tag: undefined }))}
+      onTagSelect={(name) => setFilters((prev) => ({ ...prev, tag: name === prev.tag ? undefined : name }))}
+      entryCount={total}
+      pinnedCount={pinnedCount}
+      open={sidebarOpen}
+    />
+  );
 
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col transition-colors duration-200">
+    <AppShell sidebar={sidebar}>
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800/60 transition-colors duration-200">
-        <div className="flex items-center gap-3 px-4 py-3 max-w-screen-2xl mx-auto">
+      <header
+        className="sticky top-0 z-20 flex items-center gap-3 px-5 h-14 shrink-0"
+        style={{
+          background: 'rgba(10,10,15,0.85)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid var(--border)',
+        }}
+      >
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="p-1.5 rounded-lg transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+        </button>
+
+        <div className="flex-1 relative max-w-sm">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none"
+            style={{ color: 'var(--text-muted)' }}
+          />
+          <input
+            type="text"
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            placeholder="Search entries…"
+            className="w-full pl-9 pr-4 py-2 rounded-xl text-sm bg-transparent outline-none placeholder-[var(--text-muted)]"
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          />
+        </div>
+
+        <div className="flex items-center gap-1 ml-auto">
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            onClick={refresh}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            title="Refresh"
           >
-            {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            <RefreshCw className="w-4 h-4" />
           </button>
-
-          <Link href="/" className="flex items-center gap-2 mr-2">
-            <div className="w-7 h-7 bg-violet-600 rounded-lg flex items-center justify-center">
-              <Brain className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-semibold text-sm hidden sm:block">BrainDump</span>
+          <button
+            onClick={toggleTheme}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            title="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+          <Link
+            href="/settings"
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            title="Settings"
+          >
+            <Settings className="w-4 h-4" />
           </Link>
-
-          <div className="flex-1 max-w-md">
-            <SearchBar value={search} onChange={setSearch} />
-          </div>
-
-          <div className="flex items-center gap-1 ml-auto">
-            <button
-              onClick={fetchEntries}
-              className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              title="Refresh"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-            <button
-              onClick={toggleTheme}
-              className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              title="Toggle theme"
-            >
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-            <Link
-              href="/settings"
-              className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors text-sm px-3 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            >
-              <Settings className="w-4 h-4" />
-              <span className="hidden sm:block">Settings</span>
-            </Link>
-          </div>
         </div>
       </header>
 
-      <div className="flex flex-1 max-w-screen-2xl mx-auto w-full">
-        {/* Sidebar */}
-        <AnimatePresence initial={false}>
-          {sidebarOpen && (
-            <motion.aside
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 220, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: 'easeInOut' }}
-              className="overflow-hidden shrink-0 border-r border-zinc-200 dark:border-zinc-800/60 transition-colors duration-200"
-            >
-              <div className="w-[220px] pt-6 px-3 pb-6 sticky top-[57px] h-[calc(100vh-57px)] overflow-y-auto">
-                <CategorySidebar
-                  categories={categories}
-                  selected={selectedCategory}
-                  onSelect={setSelectedCategory}
-                  totalCount={total}
-                />
-              </div>
-            </motion.aside>
-          )}
-        </AnimatePresence>
+      {/* Main content */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="flex-1 px-5 py-5 space-y-5 overflow-y-auto"
+      >
+        <DumpBox onEntryAdded={refresh} />
 
-        {/* Main */}
-        <main className="flex-1 min-w-0 px-4 sm:px-6 py-6 space-y-6">
-          <DumpBox onEntryAdded={handleEntryAdded} />
+        <FilterBar
+          view={view}
+          onViewChange={handleViewChange}
+          filters={activeFilters}
+          onClearFilter={handleClearFilter}
+          onSortChange={(s) => setFilters((prev) => ({ ...prev, sort: s }))}
+        />
 
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-              {debouncedSearch
-                ? `Results for "${debouncedSearch}"`
-                : selectedCategory !== 'all'
-                ? `${categories.find((c) => c.name === selectedCategory)?.emoji ?? ''} ${selectedCategory}`
-                : 'All entries'}
-              {!loading && (
-                <span className="text-zinc-400 dark:text-zinc-600 ml-1.5">({total})</span>
-              )}
-            </h2>
-          </div>
-
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl h-48 animate-pulse" />
-              ))}
+        {/* Pinned section */}
+        {pinnedEntries.length > 0 && !filters.category && !filters.tag && !searchValue && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Pin className="w-3.5 h-3.5" style={{ color: 'var(--accent-text)' }} />
+              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                Pinned
+              </p>
             </div>
-          ) : entries.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center py-24 text-center"
-            >
-              <div className="w-14 h-14 bg-zinc-100 dark:bg-zinc-900 rounded-2xl flex items-center justify-center mb-4 border border-zinc-200 dark:border-zinc-800">
-                <Brain className="w-7 h-7 text-zinc-400 dark:text-zinc-600" />
-              </div>
-              <p className="text-zinc-500 dark:text-zinc-400 font-medium mb-1">
-                {debouncedSearch ? 'No entries match your search' : 'Nothing here yet'}
-              </p>
-              <p className="text-zinc-400 dark:text-zinc-600 text-sm">
-                {debouncedSearch ? 'Try different keywords' : 'Start dumping your thoughts above'}
-              </p>
-            </motion.div>
-          ) : (
-            <motion.div
-              layout
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-            >
-              <AnimatePresence>
-                {entries.map((entry, i) => (
-                  <motion.div
-                    key={entry._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ delay: i * 0.03, duration: 0.2 }}
-                  >
-                    <EntryCard entry={entry} onDeleted={handleEntryDeleted} />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </motion.div>
-          )}
-        </main>
-      </div>
-    </div>
+            <EntryGrid
+              entries={pinnedEntries}
+              loading={false}
+              hasMore={false}
+              onLoadMore={() => {}}
+              view={view}
+              onOpen={setOpenEntryId}
+              onPin={handlePin}
+              onArchive={handleArchive}
+              onDelete={handleDelete}
+            />
+          </div>
+        )}
+
+        {/* Main entries */}
+        <EntryGrid
+          entries={filters.category === undefined && !filters.tag && !searchValue ? unpinnedEntries : entries}
+          loading={loading}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          view={view}
+          onOpen={setOpenEntryId}
+          onPin={handlePin}
+          onArchive={handleArchive}
+          onDelete={handleDelete}
+          label={
+            searchValue ? `Results for "${searchValue}"` :
+            filters.category && filters.category !== 'all' ? filters.category :
+            filters.tag ? `#${filters.tag}` :
+            'All entries'
+          }
+          total={total}
+        />
+      </motion.div>
+
+      {/* Entry detail modal (Task 6 slot) */}
+      {openEntryId && (
+        <EntryDetailModal
+          entryId={openEntryId}
+          onClose={() => setOpenEntryId(null)}
+          onDeleted={(id) => { handleDelete(id); setOpenEntryId(null); }}
+          onTagFilter={(tag) => { setFilters((prev) => ({ ...prev, tag })); setOpenEntryId(null); }}
+        />
+      )}
+    </AppShell>
   );
 }
