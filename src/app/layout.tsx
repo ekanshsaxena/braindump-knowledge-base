@@ -7,22 +7,22 @@ import { ToastProvider } from '@/components/Toast';
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' });
 
 export const metadata: Metadata = {
-  title: 'BrainDump — Your Personal Knowledge Base',
-  description: 'Dump your thoughts, links, and learnings. AI auto-categorizes everything.',
+  title: 'BrainDump — Your Second Brain',
+  description: 'Dump your thoughts, links, and learnings. AI organizes everything into your second brain.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider>
-      <html lang="en" className={`${geist.variable} h-full antialiased`} suppressHydrationWarning>
+      <html lang="en" className={`${geist.variable} antialiased dark`} suppressHydrationWarning>
         <head>
           <script
             dangerouslySetInnerHTML={{
-              __html: `(function(){var t=localStorage.getItem('theme');document.documentElement.classList.toggle('dark',t!=='light');})()`,
+              __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='light'){document.documentElement.classList.remove('dark');document.documentElement.classList.add('light');}else{document.documentElement.classList.add('dark');document.documentElement.classList.remove('light');}}catch(e){}})()`,
             }}
           />
         </head>
-        <body className="min-h-full flex flex-col">
+        <body className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text-primary)' }}>
           {children}
           <ToastProvider />
         </body>
