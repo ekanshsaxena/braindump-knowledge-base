@@ -15,28 +15,46 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
+    const tag = searchParams.get('tag') || '';
+    const pinned = searchParams.get('pinned');
+    const archived = searchParams.get('archived');
+    const type = searchParams.get('type') || '';
+    const sort = searchParams.get('sort') || 'newest';
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = 20;
+    const limit = parseInt(searchParams.get('limit') || '20');
 
     const query: Record<string, unknown> = { userId };
 
-    if (search) {
-      query.$text = { $search: search };
+    // By default hide archived entries (unless explicitly requesting them)
+    if (archived === 'true') {
+      query.archived = true;
+    } else {
+      query.archived = { $ne: true };
     }
 
-    if (category && category !== 'all') {
-      query['categories.name'] = category;
-    }
+    if (pinned === 'true') query.pinned = true;
+
+    if (search) query.$text = { $search: search };
+
+    if (category && category !== 'all') query['categories.name'] = category;
+
+    if (tag) query.tags = tag;
+
+    if (type) query.type = type;
+
+    const sortOrder = sort === 'oldest'
+      ? { createdAt: 1 as const }
+      : { createdAt: -1 as const };
 
     const [entries, total, categories] = await Promise.all([
       EntryModel.find(query)
-        .sort({ createdAt: -1 })
+        .sort(sortOrder)
         .skip((page - 1) * limit)
         .limit(limit)
         .lean(),
       EntryModel.countDocuments(query),
       EntryModel.aggregate([
-        { $match: { userId } },
+        { $match: { userId, archived: { $ne: true } } },
         { $unwind: '$categories' },
         { $group: { _id: '$categories.name', count: { $sum: 1 }, emoji: { $first: '$categories.emoji' } } },
         { $sort: { count: -1 } },
@@ -85,9 +103,6 @@ export async function POST(req: Request) {
       urlMetadata = await fetchUrlMetadata(primaryUrl);
     }
 
-    // Only include URL metadata when it adds real context:
-    // - entry is a pure URL (no user text), AND
-    // - the title is meaningfully different from the site name (not generic like "Instagram")
     const metaIsUseful =
       type === 'url' &&
       urlMetadata?.title &&
@@ -113,7 +128,10 @@ export async function POST(req: Request) {
             maxTokens: settings.maxTokens ?? 1024,
             userCategories: settings.userCategories ?? [],
           })
-        : { title: '', categories: [{ name: 'Uncategorized', emoji: '📌' }], tags: [], summary: content.slice(0, 120) };
+        : { title: '', categories: [{ name: 'Uncategorized', emoji: '📌' }], tags: [], summary: content.slice(0, 120), insight: '', readingTime: 1 };
+
+    const wordCount = content.split(/\s+/).length;
+    const readingTime = categorization.readingTime ?? Math.max(1, Math.ceil(wordCount / 200));
 
     const entry = await EntryModel.create({
       userId,
@@ -125,11 +143,34 @@ export async function POST(req: Request) {
       tags: categorization.tags,
       title: categorization.title ?? '',
       summary: categorization.summary,
+      insight: categorization.insight ?? '',
+      readingTime,
     });
 
     return NextResponse.json(entry, { status: 201 });
   } catch (err) {
     console.error('[POST /api/entries]', err);
     return NextResponse.json({ error: 'Failed to save entry' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    await connectDB();
+    const { searchParams } = new URL(req.url);
+    const deleteAll = searchParams.get('all');
+
+    if (deleteAll === 'true') {
+      await EntryModel.deleteMany({ userId });
+      return NextResponse.json({ ok: true });
+    }
+
+    return NextResponse.json({ error: 'Specify ?all=true' }, { status: 400 });
+  } catch (err) {
+    console.error('[DELETE /api/entries]', err);
+    return NextResponse.json({ error: 'Failed to delete entries' }, { status: 500 });
   }
 }

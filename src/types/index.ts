@@ -23,6 +23,12 @@ export interface Entry {
   tags: string[];
   title: string;
   summary: string;
+  insight?: string;
+  sourceContent?: string;
+  pinned?: boolean;
+  archived?: boolean;
+  editedAt?: string;
+  readingTime?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -30,6 +36,11 @@ export interface Entry {
 export interface Category {
   name: string;
   emoji: string;
+  count: number;
+}
+
+export interface Tag {
+  name: string;
   count: number;
 }
 
@@ -50,4 +61,25 @@ export interface CategorizeResult {
   tags: string[];
   title: string;
   summary: string;
+  insight?: string;
+  readingTime?: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  citations?: Array<{ id: string; title: string }>;
+  timestamp: number;
+  streaming?: boolean;
+}
+
+export interface FilterState {
+  search?: string;
+  category?: string;
+  tag?: string;
+  pinned?: boolean;
+  archived?: boolean;
+  type?: 'url' | 'text' | 'mixed';
+  sort?: 'newest' | 'oldest';
 }
