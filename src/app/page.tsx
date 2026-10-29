@@ -15,11 +15,14 @@ import { useTheme } from '@/hooks/useTheme';
 import type { FilterState, Entry } from '@/types';
 
 import EntryDetailModal from '@/components/entries/EntryDetailModal';
+import CommandPalette from '@/components/search/CommandPalette';
+import { useCommandPalette } from '@/hooks/useCommandPalette';
 
 export default function Home() {
   const router = useRouter();
   const { theme, toggle: toggleTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
   const [openEntryId, setOpenEntryId] = useState<string | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [view, setView] = useState<'card' | 'list'>('card');
@@ -231,7 +234,16 @@ export default function Home() {
         />
       </motion.div>
 
-      {/* Entry detail modal (Task 6 slot) */}
+      {/* Command palette */}
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onOpenEntry={(id) => { setOpenEntryId(id); setPaletteOpen(false); }}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+
+      {/* Entry detail modal */}
       {openEntryId && (
         <EntryDetailModal
           entryId={openEntryId}
