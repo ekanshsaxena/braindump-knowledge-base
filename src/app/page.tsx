@@ -14,13 +14,7 @@ import { useInfiniteEntries } from '@/hooks/useInfiniteEntries';
 import { useTheme } from '@/hooks/useTheme';
 import type { FilterState, Entry } from '@/types';
 
-// Placeholder: Task 6 will fill this in
-const EntryDetailModal = ({ entryId, onClose, onDeleted, onTagFilter }: {
-  entryId: string | null;
-  onClose: () => void;
-  onDeleted: (id: string) => void;
-  onTagFilter: (tag: string) => void;
-}) => null;
+import EntryDetailModal from '@/components/entries/EntryDetailModal';
 
 export default function Home() {
   const router = useRouter();
